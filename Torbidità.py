@@ -5,36 +5,42 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Input, Dense
 from sklearn.datasets import load_iris
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.tree import DecisionTreeRegressor
+import csv
 
 # 1. Caricamento e pre-elaborazione dei dati
 def load_and_preprocess_data(filepath):
-    data = pd.read_csv(filepath)
-    data.columns = data.columns.str.strip()  # Remove any white spaces from the column names
-    X = data.copy()  # Define X before trying to drop any columns
-
-    if 'Cloud' in data.columns:
-        data = data[data['Cloud'] == 0]  # Filter data with low or no cloud cover
-    else:
-        print("Warning: 'Cloud' column not found. Proceeding with all data.")
+    data = pd.read_csv(filepath)  
+    turbidity_present = False
+    cloud_present = False
     
-    try:
-        X = X.drop('Turbidity', axis=1).values
-    except KeyError:
-        print("Warning: 'Turbidity' column not found. Proceeding with all data.")
+    # Controlla ogni cella della prima colonna per la presenza di 'Turbidity' e 'Cloud'
+    for value in data.iloc[:, 0]:
+        print(value)
+        if value.strip() == 'Turbidity':
+            turbidity_present = True
+        elif value.strip() == 'Cloud':
+            cloud_present = True
     
-    try:
-        X = X.drop('Cloud', axis=1).values
-    except KeyError:
-        print("Warning: 'Cloud' column not found. Proceeding with all data.")
+    if not turbidity_present:
+        print("Avviso: colonna 'Turbidity' non trovata. Potrebbe essere necessario verificare il file CSV.")
+        return None, None, None, None
     
+    if not cloud_present:
+        print("Avviso: colonna 'Cloud' non trovata. Potrebbe essere necessario verificare il file CSV.")
+        return None, None, None, None
+    
+    X = data.drop(['Turbidity', 'Cloud'], axis=1).values
     y = data['Turbidity'].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    return X_train, X_test, y_train, y_test
+
 
 # 2. Definizione e addestramento dell'autoencoderdef load_and_preprocess_data(filepath):
     data = pd.read_csv(filepath)
@@ -92,24 +98,30 @@ def compare_with_decision_tree(X, y, X_embedded):
     tree.fit(X, y)
     y_pred_tree = tree.predict(X)
     mse_tree = mean_squared_error(y, y_pred_tree)
-    
+
     tree_embedded = DecisionTreeRegressor(random_state=42)
     tree_embedded.fit(X_embedded, y)
     y_pred_tree_embedded = tree_embedded.predict(X_embedded)
     mse_tree_embedded = mean_squared_error(y, y_pred_tree_embedded)
-    
+
     print(f'MSE su dati originali: {mse_tree}')
     print(f'MSE su embeddings: {mse_tree_embedded}')
+
+    
 
 # Funzione principale
 def main():
     # Sostituisci 'path_to_dataset.csv' con il percorso reale del tuo file CSV
     X_train, X_test, y_train, y_test = load_and_preprocess_data('dati.csv')
-    
+
+    if X_train is None:
+        print("Errore durante il caricamento dei dati. Verifica il file CSV.")
+        return
+
     # Addestramento dell'autoencoder
     input_dim = X_train.shape[1]
     encoder = train_autoencoder(X_train, input_dim)
-    
+
     # Ottenimento delle embeddings
     X_embedded = get_embeddings(encoder, X_train)
     
@@ -124,4 +136,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
