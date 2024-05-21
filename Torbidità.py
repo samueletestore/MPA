@@ -15,30 +15,35 @@ from sklearn.tree import DecisionTreeRegressor  # Per costruire un albero decisi
 
 # 1. Caricamento e pre-elaborazione dei dati
 def load_and_preprocess_data(filepath):
-    # Legge la prima riga del file per ottenere gli header
-    with open(filepath, 'r') as f:
-        headers = f.readline().strip().split(';')
-    # Controlla se 'Turbidity' e 'Cloud' sono presenti negli header
-    turbidity_present = 'Turbidity' in headers
-    cloud_present = 'Cloud' in headers
+    # Legge il file CSV includendo gli header
+    data = pd.read_csv(filepath, delimiter=';')  # Usa il delimitatore appropriato (; in questo caso)
+    
+    # Controlla la presenza di 'Turbidity' e 'Cloud' nelle colonne
+    turbidity_present = 'Turbidity' in data.columns
+    cloud_present = 'Cloud' in data.columns
+    
     if not turbidity_present:
         print("Warning: 'Turbidity' not found in the CSV file headers.")
         return None, None, None, None
     if not cloud_present:
         print("Warning: 'Cloud' not found in the CSV file headers.")
         return None, None, None, None
-    # Ora carica il resto dei dati, saltando la prima riga (header)
-    data = pd.read_csv(filepath, delimiter=';')
-    print(data.columns)
-    # Modifica qui se i nomi delle colonne sono diversi nel tuo CSV
+    
+    # Filtra i dati per rimuovere le righe con alta copertura nuvolosa
+    data = data[data['Cloud'] < 0.2]  # Modifica il valore soglia di 'Cloud' in base alla tua definizione di alta copertura
+    
+    # Seleziona le feature (B01-B12) e la target (Turbidity)
     X = data.drop(['Turbidity', 'Cloud'], axis=1).values
     y = data['Turbidity'].values
+    
     # Dividi i dati in set di addestramento e di test
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
     # Normalizza i dati
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
+    
     return X_train, X_test, y_train, y_test
 
 # 2. Definizione e addestramento dell'autoencoder
@@ -104,8 +109,11 @@ def compare_with_decision_tree(X, y, X_embedded):
 
 # Funzione principale
 def main():
-    # Caricamento e pre-elaborazione dei dati
+    # Sostituisci 'path_to_dataset.csv' con il percorso reale del tuo file CSV
     X_train, X_test, y_train, y_test = load_and_preprocess_data('dati.csv')
+    
+    if X_train is None or X_test is None or y_train is None or y_test is None:
+        return
     
     # Addestramento dell'autoencoder
     input_dim = X_train.shape[1]
