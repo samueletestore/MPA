@@ -1,43 +1,44 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-from sklearn.feature_selection import SelectFromModel
+import pandas as pd  # Importa la libreria pandas per la manipolazione dei dati
+import numpy as np  # Importa la libreria numpy per le operazioni numeriche
+import matplotlib.pyplot as plt  # Importa la libreria matplotlib per la creazione di grafici
+import seaborn as sns  # Importa la libreria seaborn per la visualizzazione dei dati
+from sklearn.model_selection import train_test_split, cross_val_score  # Importa metodi per la suddivisione del dataset e la valutazione incrociata
+from sklearn.preprocessing import StandardScaler  # Importa il metodo per la standardizzazione delle caratteristiche
+from sklearn.linear_model import LinearRegression, Ridge, Lasso  # Importa i modelli di regressione lineare, Ridge e Lasso
+from sklearn.ensemble import RandomForestRegressor  # Importa il modello di regressione Random Forest
+from sklearn.metrics import mean_squared_error  # Importa il metodo per il calcolo dell'errore quadratico medio
+from sklearn.feature_selection import SelectFromModel  # Importa il metodo per la selezione delle caratteristiche basato su un modello
 def load_and_preprocess_data(filepath):
-    data = pd.read_csv(filepath, delimiter=';')
-    
+    data = pd.read_csv(filepath, delimiter=';')  # Carica i dati da un file CSV con delimitatore ';'
+
     if 'Turbidity' not in data.columns or 'Cloud' not in data.columns:
+        # Controlla se le colonne 'Turbidity' o 'Cloud' sono presenti nei dati
         print("Warning: 'Turbidity' or 'Cloud' not found in the CSV file headers.")
-        return None, None, None, None
-    
-    data = data[data['Cloud'] < 0.2]
-    X = data.drop(['Turbidity', 'Cloud'], axis=1).values
-    y = data['Turbidity'].values
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-    
-    return X_train, X_test, y_train, y_test, data.columns.drop(['Turbidity', 'Cloud'])
+        return None, None, None, None  # Restituisce valori nulli se le colonne non sono presenti
+
+    data = data[data['Cloud'] < 0.2]  # Filtra i dati per mantenere solo le righe con 'Cloud' < 0.2
+    X = data.drop(['Turbidity', 'Cloud'], axis=1).values  # Rimuove le colonne 'Turbidity' e 'Cloud' e salva le altre come array di valori
+    y = data['Turbidity'].values  # Salva i valori della colonna 'Turbidity' come target
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)  # Divide i dati in set di addestramento e test
+
+    scaler = StandardScaler()  # Inizializza uno scaler per standardizzare le caratteristiche
+    X_train = scaler.fit_transform(X_train)  # Adatta e trasforma il set di addestramento
+    X_test = scaler.transform(X_test)  # Trasforma il set di test con lo stesso scaler
+
+    return X_train, X_test, y_train, y_test, data.columns.drop(['Turbidity', 'Cloud'])  # Restituisce i dati pre-elaborati e i nomi delle caratteristiche
 def analyze_distribution(data, feature_names):
     for feature in feature_names:
-        plt.figure()
-        sns.histplot(data[feature], kde=True)
-        plt.title(f'Distribution of {feature}')
-        plt.show()
+        plt.figure()  # Crea una nuova figura
+        sns.histplot(data[feature], kde=True)  # Crea un istogramma con linea KDE per la caratteristica
+        plt.title(f'Distribution of {feature}')  # Aggiunge un titolo al grafico
+        plt.show()  # Mostra il grafico
 def find_outliers(data, feature_names):
     for feature in feature_names:
-        plt.figure()
-        sns.boxplot(x=data[feature])
-        plt.title(f'Outliers in {feature}')
-        plt.show()
+        plt.figure()  # Crea una nuova figura
+        sns.boxplot(x=data[feature])  # Crea un boxplot per la caratteristica
+        plt.title(f'Outliers in {feature}')  # Aggiunge un titolo al grafico
+        plt.show()  # Mostra il grafico
 def try_regression_models(X_train, y_train, X_test, y_test):
     models = {
         'Linear Regression': LinearRegression(),
@@ -45,60 +46,66 @@ def try_regression_models(X_train, y_train, X_test, y_test):
         'Lasso Regression': Lasso(alpha=0.1),
         'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42)
     }
-    
-    results = {}
-    
+    # Crea un dizionario di modelli di regressione da testare
+
+    results = {}  # Inizializza un dizionario per i risultati
+
     for name, model in models.items():
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        results[name] = mse
-        print(f'{name}: MSE = {mse}')
-    
-    return models, results
+        model.fit(X_train, y_train)  # Adatta il modello ai dati di addestramento
+        y_pred = model.predict(X_test)  # Predice i valori del set di test
+        mse = mean_squared_error(y_test, y_pred)  # Calcola l'errore quadratico medio
+        results[name] = mse  # Salva l'errore quadratico medio nei risultati
+        print(f'{name}: MSE = {mse}')  # Stampa il risultato del modello
+
+    return models, results  # Restituisce i modelli e i risultati
 def evaluate_error(results):
     for name, mse in results.items():
-        print(f'{name}: MSE = {mse}')
+        print(f'{name}: MSE = {mse}')  # Stampa l'errore quadratico medio per ciascun modello
 def select_important_features(X_train, y_train, feature_names):
     model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-    
-    importances = model.feature_importances_
-    indices = np.argsort(importances)[::-1]
-    
+    model.fit(X_train, y_train)  # Adatta un modello di Random Forest ai dati di addestramento
+
+    importances = model.feature_importances_  # Ottiene le importanze delle caratteristiche
+    indices = np.argsort(importances)[::-1]  # Ordina le importanze in ordine decrescente
+
     for i in range(len(feature_names)):
         print(f'{i + 1}. feature {feature_names[indices[i]]} ({importances[indices[i]]})')
-    
-    sfm = SelectFromModel(model, threshold=0.1)
-    sfm.fit(X_train, y_train)
-    
-    selected_features = sfm.transform(X_train)
-    
-    return selected_features, sfm.get_support(indices=True)
+        # Stampa le caratteristiche ordinate per importanza
+
+    sfm = SelectFromModel(model, threshold=0.1)  # Inizializza un selezionatore di caratteristiche con una soglia
+    sfm.fit(X_train, y_train)  # Adatta il selezionatore ai dati di addestramento
+
+    selected_features = sfm.transform(X_train)  # Trasforma i dati di addestramento selezionando solo le caratteristiche importanti
+
+    return selected_features, sfm.get_support(indices=True)  # Restituisce le caratteristiche selezionate e gli indici di quelle selezionate
 def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices):
-    X_train_selected = X_train[:, selected_indices]
-    X_test_selected = X_test[:, selected_indices]
-    
+    X_train_selected = X_train[:, selected_indices]  # Seleziona le caratteristiche importanti nel set di addestramento
+    X_test_selected = X_test[:, selected_indices]  # Seleziona le caratteristiche importanti nel set di test
+
     models, results = try_regression_models(X_train_selected, y_train, X_test_selected, y_test)
-    
-    return models, results
+    # Prova i modelli di regressione con le caratteristiche selezionate
+
+    return models, results  # Restituisce i modelli e i risultati
 def main():
-    filepath = 'dati.csv'
+    filepath = 'dati.csv'  # Definisce il percorso del file CSV
     X_train, X_test, y_train, y_test, feature_names = load_and_preprocess_data(filepath)
-    
+    # Carica e pre-elabora i dati
+
     if X_train is None or X_test is None or y_train is None or y_test is None:
-        return
-    
-    data = pd.read_csv(filepath, delimiter=';')
-    analyze_distribution(data, feature_names)
-    find_outliers(data, feature_names)
-    
-    models, results = try_regression_models(X_train, y_train, X_test, y_test)
-    evaluate_error(results)
-    
+        return  # Esce dalla funzione se i dati non sono stati caricati correttamente
+
+    data = pd.read_csv(filepath, delimiter=';')  # Ricarica i dati per l'analisi
+    analyze_distribution(data, feature_names)  # Analizza la distribuzione delle caratteristiche
+    find_outliers(data, feature_names)  # Trova gli outliers nelle caratteristiche
+
+    models, results = try_regression_models(X_train, y_train, X_test, y_test)  # Prova diversi modelli di regressione
+    evaluate_error(results)  # Valuta l'errore dei modelli
+
     X_train_selected, selected_indices = select_important_features(X_train, y_train, feature_names)
+    # Seleziona le caratteristiche importanti
     models, results = retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices)
-    evaluate_error(results)
+    # Ripete il processo con le caratteristiche selezionate
+    evaluate_error(results)  # Valuta di nuovo l'errore dei modelli
 
 if __name__ == "__main__":
-    main()
+    main()  # Esegue la funzione principale se lo script è eseguito direttamente
