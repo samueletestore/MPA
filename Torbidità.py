@@ -6,7 +6,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 import tensorflow as tf
 from tensorflow import keras
-from keras import layers, models
 from keras.models import Model
 from tensorflow.keras.layers import Input, Dense
 from sklearn.datasets import load_iris
@@ -34,7 +33,7 @@ def load_and_preprocess_data(filepath):
 
     # Now load the rest of the data, skipping the first row (header)
     data = pd.read_csv(filepath, delimiter=';')
-    
+    print(data.columns)
     # Modifica qui se i nomi delle colonne sono diversi nel tuo CSV
     X = data.drop(['Turbidity', 'Cloud'], axis=1).values
     y = data['Turbidity'].values
@@ -55,7 +54,7 @@ def train_autoencoder(X_train, input_dim, encoding_dim=16):
     encoder = Model(input_layer, encoded)
     return encoder
 
-# 3. Embedding con l'encoder
+# 3/4. Embedding con l'encoder
 def get_embeddings(encoder, X):
     return encoder.predict(X)
 
