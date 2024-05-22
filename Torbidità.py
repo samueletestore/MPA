@@ -8,7 +8,6 @@ from sklearn.metrics import mean_squared_error  # Per calcolare l'errore quadrat
 import tensorflow as tf  # Per costruire e addestrare reti neurali
 from tensorflow.keras.models import Model  # Per definire modelli Keras
 from tensorflow.keras.layers import Input, Dense  # Per definire strati di input e densamente connessi
-from sklearn.datasets import load_iris  # Per caricare il dataset Iris
 from sklearn.cluster import KMeans  # Per eseguire la clusterizzazione K-Means
 from sklearn.decomposition import PCA  # Per la riduzione dimensionale con PCA
 from sklearn.tree import DecisionTreeRegressor  # Per costruire un albero decisionale regressore
@@ -82,12 +81,6 @@ def get_embeddings(encoder, X):
     return encoder.predict(X)  # Passa i dati attraverso l'encoder per ottenere le rappresentazioni codificate
 
 
-# 5. Produzione del dataset Iris (esempio base)
-def load_iris_dataset():
-    # Carica il dataset Iris utilizzando una funzione predefinita di scikit-learn
-    iris = load_iris()
-    return iris.data, iris.target  # Restituisce i dati e i target del dataset Iris
-
 
 # 6. Clusterizzazione e riduzione delle feature
 def perform_clustering(X_embedded):
@@ -142,8 +135,6 @@ def main():
     # Ottenimento delle embeddings
     X_embedded = get_embeddings(encoder, X_train)  # Genera gli embeddings dai dati di addestramento
     
-    # Esempio con dataset Iris
-    X_iris, y_iris = load_iris_dataset()  # Carica il dataset Iris
     
     # Clusterizzazione e visualizzazione
     perform_clustering(X_embedded)  # Esegue la clusterizzazione e visualizza i risultati
