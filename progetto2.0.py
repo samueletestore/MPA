@@ -73,8 +73,9 @@ def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indi
     print(max(selected_indices))  # Stampa il valore massimo in selected_indices
     print("----------\n")
 
-    # Ensure selected_indices are within the column range
-    selected_indices = [i for i in selected_indices if i < X_train.shape[1]]
+    if len(selected_indices) == 0:
+        print("No features selected.")
+        return None, None
 
     X_train_selected = X_train[:, selected_indices]  # Seleziona le caratteristiche importanti nel set di addestramento
     X_test_selected = X_test[:, selected_indices]  # Seleziona le caratteristiche importanti nel set di test
@@ -83,6 +84,7 @@ def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indi
     # Prova i modelli di regressione con le caratteristiche selezionate
 
     return models, results  # Restituisce i modelli e i risultati
+
 
 def train_autoencoder(X_train, input_dim, encoding_dim=16):
     # Definisce lo strato di input con la dimensione specificata
