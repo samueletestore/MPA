@@ -1,24 +1,21 @@
-import pandas as pd  
-import numpy as np  
-import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-from sklearn.feature_selection import SelectFromModel
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense
+import matplotlib.pyplot as plt
 
 def load_and_preprocess_data(filepath):
     data = pd.read_csv(filepath, delimiter=';')
     if 'Turbidity' not in data.columns or 'Cloud' not in data.columns:
-        #Controlla se le colonne 'Turbidity' o 'Cloud' sono presenti nei dati
         print("Warning: 'Turbidity' or 'Cloud' not found in the CSV file headers.")
-        return None, None, None, None  # Restituisce valori nulli se le colonne non sono presenti
+        return None, None, None, None, None
 
-    # Filtra i dati per mantenere solo le righe con 'Cloud' < 0.2
     data = data[data['Cloud'] < 0.2]
     
     X = data.drop(['Turbidity', 'Cloud'], axis=1).values
@@ -32,104 +29,125 @@ def load_and_preprocess_data(filepath):
     
     return X_train, X_test, y_train, y_test, data.columns.drop(['Turbidity', 'Cloud'])
 
+def select_important_features(X_train, y_train, feature_names):
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+
+    importances = model.feature_importances_
+    indices = np.argsort(importances)[::-1]
+    
+    for i in range(len(feature_names)):
+        print(f'{i + 1}. feature {feature_names[indices[i]]} ({importances[indices[i]]})')
+
+    sfm = SelectFromModel(model, threshold='mean')
+    sfm.fit(X_train, y_train)
+
+    selected_features = sfm.transform(X_train)
+    selected_indices = sfm.get_support(indices=True)
+    
+    print(f"Selected feature indices: {selected_indices}")
+    print(f"Number of features selected: {selected_features.shape[1]}")
+    
+    return selected_features, selected_indices
+
+def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices):
+    print(f"Shape of X_train before selection: {X_train.shape}")
+    print(f"Shape of X_test before selection: {X_test.shape}")
+
+    selected_indices_in_embedded = [i for i in selected_indices if i < X_train.shape[1]]
+    if not selected_indices_in_embedded:
+        print("No valid indices in embedded space. Exiting.")
+        return None, None
+
+    X_train_selected = X_train[:, selected_indices_in_embedded]
+    X_test_selected = X_test[:, selected_indices_in_embedded]
+
+    print(f"Shape of X_train after selection: {X_train_selected.shape}")
+    print(f"Shape of X_test after selection: {X_test_selected.shape}")
+
+    models, results = try_regression_models(X_train_selected, y_train, X_test_selected, y_test)
+
+    return models, results
+
 def try_regression_models(X_train, y_train, X_test, y_test):
     models = {
         'Linear Regression': LinearRegression(),
-        'Ridge Regression': Ridge(alpha=1.0),
-        'Lasso Regression': Lasso(alpha=0.1),
-        'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42)
+        'Ridge Regression': Ridge(),
+        'Lasso Regression': Lasso(),
     }
-    # Crea un dizionario di modelli di regressione da testare
-
-    results = {}  # Inizializza un dizionario per i risultati
-
+    
+    results = {}
     for name, model in models.items():
-        model.fit(X_train, y_train)  # Adatta il modello ai dati di addestramento
-        y_pred = model.predict(X_test)  # Predice i valori del set di test
-        mse = mean_squared_error(y_test, y_pred)  # Calcola l'errore quadratico medio
-        results[name] = mse  # Salva l'errore quadratico medio nei risultati
-        print(f'{name}: MSE = {mse}')  # Stampa il risultato del modello
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        mse = np.mean((y_pred - y_test) ** 2)
+        results[name] = mse
+        print(f'{name}: MSE = {mse}')
+        
+    return models, results
 
-    return models, results  # Restituisce i modelli e i risultati
 def evaluate_error(results):
     for name, mse in results.items():
-        print(f'{name}: MSE = {mse}')  # Stampa l'errore quadratico medio per ciascun modello
-def select_important_features(X_train, y_train, feature_names):
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)  # Adatta un modello di Random Forest ai dati di addestramento
+        print(f'{name}: MSE = {mse}')
 
-    importances = model.feature_importances_  # Ottiene le importanze delle caratteristiche
-    indices = np.argsort(importances)[::-1]  # Ordina le importanze in ordine decrescente
-
-    for i in range(len(feature_names)):
-        print(f'{i + 1}. feature {feature_names[indices[i]]} ({importances[indices[i]]})')
-        # Stampa le caratteristiche ordinate per importanza
-
-    sfm = SelectFromModel(model, threshold=0.1)  # Inizializza un selezionatore di caratteristiche con una soglia
-    sfm.fit(X_train, y_train)  # Adatta il selezionatore ai dati di addestramento
-
-    selected_features = sfm.transform(X_train)  # Trasforma i dati di addestramento selezionando solo le caratteristiche importanti
-
-    return selected_features, sfm.get_support(indices=True)  # Restituisce le caratteristiche selezionate e gli indici di quelle selezionate
-def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices):
-    X_train_selected = X_train[:, selected_indices]  # Seleziona le caratteristiche importanti nel set di addestramento
-    X_test_selected = X_test[:, selected_indices]  # Seleziona le caratteristiche importanti nel set di test
-
-    models, results = try_regression_models(X_train_selected, y_train, X_test_selected, y_test)
-    # Prova i modelli di regressione con le caratteristiche selezionate
-
-    return models, results  # Restituisce i modelli e i risultati
-
-
-def train_autoencoder(X_train, input_dim, encoding_dim=16):
-    # Definisce lo strato di input con la dimensione specificata
+def train_autoencoder(X_train, input_dim):
     input_layer = Input(shape=(input_dim,))
-    
-    # Definisce lo strato codificato (bottleneck) con la dimensione di codifica specificata
-    encoded = Dense(encoding_dim, activation='relu')(input_layer)
-    
-    # Definisce lo strato decodificato (output ricostruito) con la dimensione dell'input
-    decoded = Dense(input_dim, activation='sigmoid')(encoded)
-    
-    # Crea il modello autoencoder che mappa l'input ricostruito dall'input originale
+    encoded = Dense(64, activation='relu')(input_layer)
+    encoded = Dense(32, activation='relu')(encoded)
+    encoded = Dense(16, activation='relu')(encoded)
+    decoded = Dense(32, activation='relu')(encoded)
+    decoded = Dense(64, activation='relu')(decoded)
+    decoded = Dense(input_dim, activation='sigmoid')(decoded)
+
     autoencoder = Model(input_layer, decoded)
-    
-    # Compila il modello con l'ottimizzatore Adam e la perdita MSE (mean squared error)
     autoencoder.compile(optimizer='adam', loss='mse')
+
+    history = autoencoder.fit(X_train, X_train, epochs=50, batch_size=32, validation_split=0.2)
     
-    # Addestra l'autoencoder sui dati di addestramento per 50 epoche con un batch size di 32, shufflando i dati e utilizzando il 20% dei dati per la validazione
-    autoencoder.fit(X_train, X_train, epochs=50, batch_size=32, shuffle=True, validation_split=0.2)
-    
-    # Crea un modello solo per l'encoder che mappa l'input nello spazio codificato
+    plt.plot(history.history['loss'], label='loss')
+    plt.plot(history.history['val_loss'], label='val_loss')
+    plt.legend()
+    plt.show()
+
     encoder = Model(input_layer, encoded)
     
-    return encoder  # Restituisce l'encoder addestrato
+    return encoder
 
-
-# 3/4. Ottenimento degli embeddings con l'encoder
 def get_embeddings(encoder, X):
-    # Utilizza l'encoder per ottenere gli embeddings dai dati
-    return encoder.predict(X)  # Passa i dati attraverso l'encoder per ottenere le rappresentazioni codificate
+    return encoder.predict(X)
+
 def main():
-    filepath = 'dati.csv'
+    filepath = "dati.csv"
+    
+    # Carica e preelabora i dati
     X_train, X_test, y_train, y_test, feature_names = load_and_preprocess_data(filepath)
-
-    if X_train is None or X_test is None or y_train is None or y_test is None:
+    
+    if X_train is None:
         return
-
-    models, results = try_regression_models(X_train, y_train, X_test, y_test)
-    evaluate_error(results)
-
-    X_train_selected, selected_indices = select_important_features(X_train, y_train, feature_names)
+    
+    # Seleziona le caratteristiche importanti
+    selected_features, selected_indices = select_important_features(X_train, y_train, feature_names)
+    
+    # Analizza le bande spettrali per identificare quelle importanti
+    important_bands = [feature_names[i] for i in selected_indices]
+    print("Bande spettrali importanti:", important_bands)
+    
+    # Riprova i modelli di regressione con le caratteristiche selezionate
     models, results = retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices)
+    
+    # Valuta l'errore atteso
+    print("Valutazione dell'errore atteso:")
     evaluate_error(results)
-
+    
+    # Addestra un autoencoder
     input_dim = X_train.shape[1]
     encoder = train_autoencoder(X_train, input_dim)
-    X_embedded = get_embeddings(encoder, X_train)
-
-    models, results = retry_with_selected_features(X_train[:, selected_indices], X_test[:, selected_indices], y_train, y_test, selected_indices)
-    evaluate_error(results)
+    
+    # Ottieni le rappresentazioni codificate
+    encoded_train = get_embeddings(encoder, X_train)
+    encoded_test = get_embeddings(encoder, X_test)
 
 if __name__ == "__main__":
     main()
+
+
