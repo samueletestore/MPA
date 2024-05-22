@@ -11,20 +11,6 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense
 
-#def load_and_preprocess_data(filepath):
-#    data = pd.read_csv(filepath, delimiter=';')  # Carica i dati da un file CSV con delimitatore ';'
-#    if 'Turbidity' not in data.columns or 'Cloud' not in data.columns:
-#        # Controlla se le colonne 'Turbidity' o 'Cloud' sono presenti nei dati
-#        print("Warning: 'Turbidity' or 'Cloud' not found in the CSV file headers.")
-#        return None, None, None, None  # Restituisce valori nulli se le colonne non sono presenti
-#    data = data[data['Cloud'] < 0.2]  # Filtra i dati per mantenere solo le righe con 'Cloud' < 0.2
-#    X = data.drop(['Turbidity', 'Cloud'], axis=1).values  # Rimuove le colonne 'Turbidity' e 'Cloud' e salva le altre come array di valori
-#    y = data['Turbidity'].values  # Salva i valori della colonna 'Turbidity' come target
-#    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)  # Divide i dati in set di addestramento e test
-#    scaler = StandardScaler()  # Inizializza uno scaler per standardizzare le caratteristiche
-#    X_train = scaler.fit_transform(X_train)  # Adatta e trasforma il set di addestramento
-#    X_test = scaler.transform(X_test)  # Trasforma il set di test con lo stesso scaler
-#    return X_train, X_test, y_train, y_test, data.columns.drop(['Turbidity', 'Cloud'])  # Restituisce i dati pre-elaborati e i nomi delle caratteristiche
 def load_and_preprocess_data(filepath):
     data = pd.read_csv(filepath, delimiter=';')
     if 'Turbidity' not in data.columns or 'Cloud' not in data.columns:
