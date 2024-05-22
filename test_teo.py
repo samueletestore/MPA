@@ -109,3 +109,39 @@ for name, model in models.items():
             plt.xlabel('Coefficient Value')
             plt.ylabel('Features')
             plt.show()
+# Calcola le metriche per ogni modello
+metrics = {}
+for name, model in models.items():
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                               ('model', model)])
+    pipeline.fit(X_train, y_train)
+    
+    # Calcola le metriche
+    train_r2 = pipeline.score(X_train, y_train)
+    test_r2 = pipeline.score(X_test, y_test)
+    y_pred = pipeline.predict(X_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    
+    # Salva le metriche
+    metrics[name] = {'Train R2': train_r2, 'Test R2': test_r2, 'MAE': mae, 'MSE': mse}
+
+# Confronta le metriche per selezionare il miglior modello
+metrics_df = pd.DataFrame.from_dict(metrics, orient='index')
+best_model = metrics_df['Test R2'].idxmax()
+
+# Visualizza il grafico del miglior modello
+plt.figure(figsize=(10, 6))
+sns.barplot(x=metrics_df.index, y='Test R2', data=metrics_df, palette='Blues')
+plt.title('Test R2 score per ogni modello')
+plt.xlabel('Modello')
+plt.ylabel('Test R2 score')
+plt.xticks(rotation=45)
+plt.axhline(y=metrics_df.loc[best_model, 'Test R2'], color='red', linestyle='--', label='Miglior modello')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+print(f"Il miglior modello per la previsione della torbidità è: {best_model}")
+print(f"Test R2 score del miglior modello: {metrics_df.loc[best_model, 'Test R2']}")
+
