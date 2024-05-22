@@ -79,6 +79,8 @@ def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indi
     # Prova i modelli di regressione con le caratteristiche selezionate
 
     return models, results  # Restituisce i modelli e i risultati
+
+
 def train_autoencoder(X_train, input_dim, encoding_dim=16):
     # Definisce lo strato di input con la dimensione specificata
     input_layer = Input(shape=(input_dim,))
