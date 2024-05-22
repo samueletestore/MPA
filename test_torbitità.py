@@ -27,18 +27,7 @@ def load_and_preprocess_data(filepath):
     X_test = scaler.transform(X_test)  # Trasforma il set di test con lo stesso scaler
 
     return X_train, X_test, y_train, y_test, data.columns.drop(['Turbidity', 'Cloud'])  # Restituisce i dati pre-elaborati e i nomi delle caratteristiche
-def analyze_distribution(data, feature_names):
-    for feature in feature_names:
-        plt.figure()  # Crea una nuova figura
-        sns.histplot(data[feature], kde=True)  # Crea un istogramma con linea KDE per la caratteristica
-        plt.title(f'Distribution of {feature}')  # Aggiunge un titolo al grafico
-        plt.show()  # Mostra il grafico
-def find_outliers(data, feature_names):
-    for feature in feature_names:
-        plt.figure()  # Crea una nuova figura
-        sns.boxplot(x=data[feature])  # Crea un boxplot per la caratteristica
-        plt.title(f'Outliers in {feature}')  # Aggiunge un titolo al grafico
-        plt.show()  # Mostra il grafico
+
 def try_regression_models(X_train, y_train, X_test, y_test):
     models = {
         'Linear Regression': LinearRegression(),
@@ -95,8 +84,6 @@ def main():
         return  # Esce dalla funzione se i dati non sono stati caricati correttamente
 
     data = pd.read_csv(filepath, delimiter=';')  # Ricarica i dati per l'analisi
-    analyze_distribution(data, feature_names)  # Analizza la distribuzione delle caratteristiche
-    find_outliers(data, feature_names)  # Trova gli outliers nelle caratteristiche
 
     models, results = try_regression_models(X_train, y_train, X_test, y_test)  # Prova diversi modelli di regressione
     evaluate_error(results)  # Valuta l'errore dei modelli
