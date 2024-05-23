@@ -12,6 +12,9 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 import seaborn as sns
 from yellowbrick.model_selection import LearningCurve
+import os
+
+os.makedirs('img', exist_ok=True)
 
 # Carica i dati dal file CSV
 data = pd.read_csv("dati.csv", delimiter=';')
@@ -30,11 +33,12 @@ sns.boxplot(data=data_valid.drop(['Turbidity', 'Cloud'], axis=1))
 plt.title('Distribuzione delle bande spettrali')
 plt.xlabel('Bande spettrali')
 plt.ylabel('Valore')
+plt.savefig('img/Distribuzione_delle_bande_spettrali.png')
 plt.show()
 
 # Dividi i dati in set di addestramento e test
-X = data_valid.drop(['Turbidity', 'Cloud'], axis=1) # Features
-y = data_valid['Turbidity'] # Target
+X = data_valid.drop(['Turbidity', 'Cloud'], axis=1)  # Features
+y = data_valid['Turbidity']  # Target
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Costruisci un pipeline per la gestione delle features
@@ -66,7 +70,7 @@ for name, model in models.items():
     plt.figure(figsize=(8, 6))
     visualizer = LearningCurve(pipeline, scoring='r2')
     visualizer.fit(X, y)
-    visualizer.show()
+    visualizer.show(outpath=f'img/{name}_Learning_Curve.png')
 
     # Valutazione R2 score
     print("Training R2 score:", pipeline.score(X_train, y_train))
@@ -86,6 +90,7 @@ for name, model in models.items():
     plt.title(f"{name} - Predicted vs Actual")
     plt.xlabel("Actual")
     plt.ylabel("Predicted")
+    plt.savefig(f'img/{name}_Predicted_vs_Actual.png')
     plt.show()
 
     # Visualizza l'importanza delle features (per modelli non lineari)
@@ -97,6 +102,7 @@ for name, model in models.items():
             plt.title(f"{name} - Feature Importance")
             plt.xlabel('Importance')
             plt.ylabel('Features')
+            plt.savefig(f'img/{name}_Feature_Importance.png')
             plt.show()
 
     # Visualizza i coefficienti (solo per modelli lineari)
@@ -108,7 +114,9 @@ for name, model in models.items():
             plt.title(f"{name} - Coefficients")
             plt.xlabel('Coefficient Value')
             plt.ylabel('Features')
+            plt.savefig(f'img/{name}_Coefficients.png')
             plt.show()
+
 # Calcola le metriche per ogni modello
 metrics = {}
 for name, model in models.items():
@@ -140,8 +148,8 @@ plt.xticks(rotation=45)
 plt.axhline(y=metrics_df.loc[best_model, 'Test R2'], color='red', linestyle='--', label='Miglior modello')
 plt.legend()
 plt.tight_layout()
+plt.savefig('img/Test_R2_score_per_ogni_modello.png')
 plt.show()
 
 print(f"Il miglior modello per la previsione della torbidità è: {best_model}")
 print(f"Test R2 score del miglior modello: {metrics_df.loc[best_model, 'Test R2']}")
-
