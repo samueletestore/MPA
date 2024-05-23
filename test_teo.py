@@ -13,8 +13,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from yellowbrick.model_selection import LearningCurve
 import os
+import shutil
 
-os.makedirs('img', exist_ok=True)
+# Crea la cartella img se non esiste e svuotala se esiste
+img_dir = 'img'
+if os.path.exists(img_dir):
+    shutil.rmtree(img_dir)
+os.makedirs(img_dir, exist_ok=True)
 
 # Carica i dati dal file CSV
 data = pd.read_csv("dati.csv", delimiter=';')
@@ -33,8 +38,8 @@ sns.boxplot(data=data_valid.drop(['Turbidity', 'Cloud'], axis=1))
 plt.title('Distribuzione delle bande spettrali')
 plt.xlabel('Bande spettrali')
 plt.ylabel('Valore')
-plt.savefig('img/Distribuzione_delle_bande_spettrali.png')
-plt.show()
+plt.savefig(os.path.join(img_dir, 'Distribuzione_delle_bande_spettrali.png'))
+plt.close()
 
 # Dividi i dati in set di addestramento e test
 X = data_valid.drop(['Turbidity', 'Cloud'], axis=1)  # Features
@@ -70,7 +75,8 @@ for name, model in models.items():
     plt.figure(figsize=(8, 6))
     visualizer = LearningCurve(pipeline, scoring='r2')
     visualizer.fit(X, y)
-    visualizer.show(outpath=f'img/{name}_Learning_Curve.png')
+    visualizer.show(outpath=os.path.join(img_dir, f'{name}_Learning_Curve.png'))
+    plt.close()
 
     # Valutazione R2 score
     print("Training R2 score:", pipeline.score(X_train, y_train))
@@ -90,8 +96,8 @@ for name, model in models.items():
     plt.title(f"{name} - Predicted vs Actual")
     plt.xlabel("Actual")
     plt.ylabel("Predicted")
-    plt.savefig(f'img/{name}_Predicted_vs_Actual.png')
-    plt.show()
+    plt.savefig(os.path.join(img_dir, f'{name}_Predicted_vs_Actual.png'))
+    plt.close()
 
     # Visualizza l'importanza delle features (per modelli non lineari)
     if name in ['Support Vector Regression', 'Gradient Boosting Regression']:
@@ -102,8 +108,8 @@ for name, model in models.items():
             plt.title(f"{name} - Feature Importance")
             plt.xlabel('Importance')
             plt.ylabel('Features')
-            plt.savefig(f'img/{name}_Feature_Importance.png')
-            plt.show()
+            plt.savefig(os.path.join(img_dir, f'{name}_Feature_Importance.png'))
+            plt.close()
 
     # Visualizza i coefficienti (solo per modelli lineari)
     if name in ['Linear Regression', 'Ridge Regression', 'Lasso Regression']:
@@ -114,8 +120,8 @@ for name, model in models.items():
             plt.title(f"{name} - Coefficients")
             plt.xlabel('Coefficient Value')
             plt.ylabel('Features')
-            plt.savefig(f'img/{name}_Coefficients.png')
-            plt.show()
+            plt.savefig(os.path.join(img_dir, f'{name}_Coefficients.png'))
+            plt.close()
 
 # Calcola le metriche per ogni modello
 metrics = {}
@@ -148,8 +154,8 @@ plt.xticks(rotation=45)
 plt.axhline(y=metrics_df.loc[best_model, 'Test R2'], color='red', linestyle='--', label='Miglior modello')
 plt.legend()
 plt.tight_layout()
-plt.savefig('img/Test_R2_score_per_ogni_modello.png')
-plt.show()
+plt.savefig(os.path.join(img_dir, 'Test_R2_score_per_ogni_modello.png'))
+plt.close()
 
 print(f"Il miglior modello per la previsione della torbidità è: {best_model}")
 print(f"Test R2 score del miglior modello: {metrics_df.loc[best_model, 'Test R2']}")
