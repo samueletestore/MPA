@@ -1,153 +1,172 @@
-import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.feature_selection import SelectFromModel
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
-import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense
+from sklearn.svm import SVR
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
+import seaborn as sns
+from yellowbrick.model_selection import LearningCurve
+import os
+import shutil
+import shap
 
-def load_and_preprocess_data(filepath):
-    data = pd.read_csv(filepath, delimiter=';')
-    if 'Turbidity' not in data.columns or 'Cloud' not in data.columns:
-        print("Warning: 'Turbidity' or 'Cloud' not found in the CSV file headers.")
-        return None, None, None, None, None
+# Crea la cartella img se non esiste e svuotala se esiste
+img_dir = 'img'
+if os.path.exists(img_dir):
+    shutil.rmtree(img_dir)
+os.makedirs(img_dir, exist_ok=True)
 
-    data = data[data['Cloud'] < 0.2]
+# Carica i dati dal file CSV
+data = pd.read_csv("dati.csv", delimiter=';')
+
+# Esplora e pulisci i dati
+# Gestione dei dati mancanti
+data.dropna(inplace=True)
+
+# Selezione di un campione di dati validi (senza copertura nuvolosa)
+data_valid = data[data['Cloud'] < 0.1]
+
+# Analisi della distribuzione dei valori nelle bande spettrali
+# e individuazione di eventuali outliers
+plt.figure(figsize=(12, 6))
+sns.boxplot(data=data_valid.drop(['Turbidity', 'Cloud'], axis=1))
+plt.title('Distribuzione delle bande spettrali')
+plt.xlabel('Bande spettrali')
+plt.ylabel('Valore')
+plt.savefig(os.path.join(img_dir, 'Distribuzione_delle_bande_spettrali.png'))
+plt.close()
+
+# Dividi i dati in set di addestramento e test
+X = data_valid.drop(['Turbidity', 'Cloud'], axis=1)  # Features
+y = data_valid['Turbidity']  # Target
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Costruisci un pipeline per la gestione delle features
+numeric_features = X.select_dtypes(include=['int64', 'float64']).columns
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_features)])
+
+# Definisci i modelli
+models = {'Linear Regression': LinearRegression(),
+          'Ridge Regression': Ridge(),
+          'Lasso Regression': Lasso(),
+          'Support Vector Regression': SVR(),
+          'Gradient Boosting Regression': GradientBoostingRegressor()}
+
+# Addestra e valuta i modelli
+for name, model in models.items():
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                               ('model', model)])
+    pipeline.fit(X_train, y_train)
+
+    print(f"\n{name}:")
+
+    # Calcola e visualizza la curva di apprendimento
+    plt.figure(figsize=(8, 6))
+    visualizer = LearningCurve(pipeline, scoring='r2')
+    visualizer.fit(X, y)
+    visualizer.show(outpath=os.path.join(img_dir, f'{name}_Learning_Curve.png'))
+    plt.close()
+
+    # Valutazione R2 score
+    print("Training R2 score:", pipeline.score(X_train, y_train))
+    print("Test R2 score:", pipeline.score(X_test, y_test))
+
+    # Valuta le prestazioni del modello
+    y_pred = pipeline.predict(X_test)
+    mae = mean_absolute_error(y_test, y_pred)  # Calcolo del MAE
+    mse = mean_squared_error(y_test, y_pred)   # Calcolo del MSE
+    print(f"Test MAE for {name}: {mae:.4f}")
+    print(f"Test MSE for {name}: {mse:.4f}")
+
+    # Visualizza previsioni rispetto ai valori effettivi
+    plt.figure(figsize=(8, 6))
+    plt.scatter(y_test, y_pred, color='blue')
+    plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], linestyle='--', color='red')
+    plt.title(f"{name} - Predicted vs Actual")
+    plt.xlabel("Actual")
+    plt.ylabel("Predicted")
+    plt.savefig(os.path.join(img_dir, f'{name}_Predicted_vs_Actual.png'))
+    plt.close()
+
+    # Visualizza l'importanza delle features (per modelli non lineari)
+    if name == 'Gradient Boosting Regression':
+        if hasattr(pipeline.named_steps['model'], 'feature_importances_'):
+            feature_importance = pipeline.named_steps['model'].feature_importances_
+            plt.figure(figsize=(10, 6))
+            sns.barplot(x=feature_importance, y=X.columns)
+            plt.title(f"{name} - Feature Importance")
+            plt.xlabel('Importance')
+            plt.ylabel('Features')
+            plt.savefig(os.path.join(img_dir, f'{name}_Feature_Importance.png'))
+            plt.close()
+
+    # Calcola i valori SHAP per SVR
+    if name == 'Support Vector Regression':
+        explainer = shap.KernelExplainer(pipeline.named_steps['model'].predict, X_train)
+        shap_values = explainer.shap_values(X_test, nsamples=100)
+        shap.summary_plot(shap_values, X_test, feature_names=X.columns)
+        # Assicurati di chiamare plt.gcf() prima di plt.savefig
+        plt.gcf()
+        plt.savefig(os.path.join(img_dir, f'{name}_Feature_Importance.png'))
+        plt.close()
+
+    # Visualizza i coefficienti (solo per modelli lineari)
+    if name in ['Linear Regression', 'Ridge Regression', 'Lasso Regression']:
+        if hasattr(pipeline.named_steps['model'], 'coef_'):
+            coef = pipeline.named_steps['model'].coef_
+            plt.figure(figsize=(10, 6))
+            sns.barplot(x=coef, y=X.columns)
+            plt.title(f"{name} - Coefficients")
+            plt.xlabel('Coefficient Value')
+            plt.ylabel('Features')
+            plt.savefig(os.path.join(img_dir, f'{name}_Coefficients.png'))
+            plt.close()
+
+# Calcola le metriche per ogni modello
+metrics = {}
+for name, model in models.items():
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                               ('model', model)])
+    pipeline.fit(X_train, y_train)
     
-    X = data.drop(['Turbidity', 'Cloud'], axis=1).values
-    y = data['Turbidity'].values
+    # Calcola le metriche
+    train_r2 = pipeline.score(X_train, y_train)
+    test_r2 = pipeline.score(X_test, y_test)
+    y_pred = pipeline.predict(X_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-    
-    return X_train, X_test, y_train, y_test, data.columns.drop(['Turbidity', 'Cloud'])
+    # Salva le metriche
+    metrics[name] = {'Train R2': train_r2, 'Test R2': test_r2, 'MAE': mae, 'MSE': mse}
 
-def select_important_features(X_train, y_train, feature_names):
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+# Confronta le metriche per selezionare il miglior modello
+metrics_df = pd.DataFrame.from_dict(metrics, orient='index')
+best_model = metrics_df['Test R2'].idxmax()
 
-    importances = model.feature_importances_
-    indices = np.argsort(importances)[::-1]
-    
-    for i in range(len(feature_names)):
-        print(f'{i + 1}. feature {feature_names[indices[i]]} ({importances[indices[i]]})')
+# Visualizza il grafico del miglior modello
+plt.figure(figsize=(10, 6))
+sns.barplot(x=metrics_df.index, y='Test R2', data=metrics_df, palette='Blues')
+plt.title('Test R2 score per ogni modello')
+plt.xlabel('Modello')
+plt.ylabel('Test R2 score')
+plt.xticks(rotation=45)
+plt.axhline(y=metrics_df.loc[best_model, 'Test R2'], color='red', linestyle='--', label='Miglior modello')
+plt.legend()
+plt.tight_layout()
+plt.savefig(os.path.join(img_dir, 'Test_R2_score_per_ogni_modello.png'))
+plt.close()
 
-    sfm = SelectFromModel(model, threshold='mean')
-    sfm.fit(X_train, y_train)
-
-    selected_features = sfm.transform(X_train)
-    selected_indices = sfm.get_support(indices=True)
-    
-    print(f"Selected feature indices: {selected_indices}")
-    print(f"Number of features selected: {selected_features.shape[1]}")
-    
-    return selected_features, selected_indices
-
-def retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices):
-    print(f"Shape of X_train before selection: {X_train.shape}")
-    print(f"Shape of X_test before selection: {X_test.shape}")
-
-    selected_indices_in_embedded = [i for i in selected_indices if i < X_train.shape[1]]
-    if not selected_indices_in_embedded:
-        print("No valid indices in embedded space. Exiting.")
-        return None, None
-
-    X_train_selected = X_train[:, selected_indices_in_embedded]
-    X_test_selected = X_test[:, selected_indices_in_embedded]
-
-    print(f"Shape of X_train after selection: {X_train_selected.shape}")
-    print(f"Shape of X_test after selection: {X_test_selected.shape}")
-
-    models, results = try_regression_models(X_train_selected, y_train, X_test_selected, y_test)
-
-    return models, results
-
-def try_regression_models(X_train, y_train, X_test, y_test):
-    models = {
-        'Linear Regression': LinearRegression(),
-        'Ridge Regression': Ridge(),
-        'Lasso Regression': Lasso(),
-    }
-    
-    results = {}
-    for name, model in models.items():
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        mse = np.mean((y_pred - y_test) ** 2)
-        results[name] = mse
-        print(f'{name}: MSE = {mse}')
-        
-    return models, results
-
-def evaluate_error(results):
-    for name, mse in results.items():
-        print(f'{name}: MSE = {mse}')
-
-def train_autoencoder(X_train, input_dim):
-    input_layer = Input(shape=(input_dim,))
-    encoded = Dense(64, activation='relu')(input_layer)
-    encoded = Dense(32, activation='relu')(encoded)
-    encoded = Dense(16, activation='relu')(encoded)
-    decoded = Dense(32, activation='relu')(encoded)
-    decoded = Dense(64, activation='relu')(decoded)
-    decoded = Dense(input_dim, activation='sigmoid')(decoded)
-
-    autoencoder = Model(input_layer, decoded)
-    autoencoder.compile(optimizer='adam', loss='mse')
-
-    history = autoencoder.fit(X_train, X_train, epochs=50, batch_size=32, validation_split=0.2)
-    
-    plt.plot(history.history['loss'], label='loss')
-    plt.plot(history.history['val_loss'], label='val_loss')
-    plt.legend()
-    plt.show()
-
-    encoder = Model(input_layer, encoded)
-    
-    return encoder
-
-def get_embeddings(encoder, X):
-    return encoder.predict(X)
-
-def main():
-    filepath = "dati.csv"
-    
-    # Carica e preelabora i dati
-    X_train, X_test, y_train, y_test, feature_names = load_and_preprocess_data(filepath)
-    
-    if X_train is None:
-        return
-    
-    # Seleziona le caratteristiche importanti
-    selected_features, selected_indices = select_important_features(X_train, y_train, feature_names)
-    
-    # Analizza le bande spettrali per identificare quelle importanti
-    important_bands = [feature_names[i] for i in selected_indices]
-    print("Bande spettrali importanti:", important_bands)
-    
-    # Riprova i modelli di regressione con le caratteristiche selezionate
-    models, results = retry_with_selected_features(X_train, X_test, y_train, y_test, selected_indices)
-    
-    # Valuta l'errore atteso
-    print("Valutazione dell'errore atteso:")
-    evaluate_error(results)
-    
-    # Addestra un autoencoder
-    input_dim = X_train.shape[1]
-    encoder = train_autoencoder(X_train, input_dim)
-    
-    # Ottieni le rappresentazioni codificate
-    encoded_train = get_embeddings(encoder, X_train)
-    encoded_test = get_embeddings(encoder, X_test)
-
-if __name__ == "__main__":
-    main()
-
-
+print(f"Il miglior modello per la previsione della torbidità è: {best_model}")
+print(f"Test R2 score del miglior modello: {metrics_df.loc[best_model, 'Test R2']}")
