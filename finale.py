@@ -71,7 +71,7 @@ models = {
     "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42)
 }
 
-# Valutazione dell'Impatto della Rimozione degli Outlier
+# Valutazione dell'Impatto della Rimozione degli Outlier e Addestramento e Valutazione dei Modelli di Regressione
 
 # Calcola le performance del modello prima della rimozione degli outlier
 print("Performance del modello prima della rimozione degli outlier:")
@@ -92,14 +92,6 @@ print("\nPerformance del modello dopo la rimozione degli outlier:")
 for name, model in models.items():
     mse, mae, r2 = evaluate_model(name, model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
     results.append((name, mse, mae, r2, 'After Outlier Removal'))
-
-# Addestramento e Valutazione dei Modelli di Regressione
-
-# Valutazione dei modelli
-print("\nValutazione dei Modelli di Regressione:")
-for name, model in models.items():
-    mse, mae, r2 = evaluate_model(name, model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
-    results.append((name, mse, mae, r2))
 
 # Creazione di un DataFrame per i risultati
 results_df = pd.DataFrame(results, columns=['Model', 'MSE', 'MAE', 'R2', 'Type'])
