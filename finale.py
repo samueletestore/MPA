@@ -11,6 +11,21 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers import Dense
+import os
+
+# Funzione per rimuovere tutti i file in una cartella
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            os.unlink(file_path)
+
+# Crea la cartella img se non esiste e rimuovi i file se esistono
+img_folder = 'img'
+if not os.path.exists(img_folder):
+    os.makedirs(img_folder)
+else:
+    clear_folder(img_folder)
 
 # Carica i dati
 data = pd.read_csv("dati.csv", delimiter=';')
@@ -52,7 +67,8 @@ plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], marker='x', color='red
 plt.title('Clustering dei Dati')
 plt.xlabel('Feature 1')
 plt.ylabel('Feature 2')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'clustering.png'))
+plt.close()
 
 # Funzione per valutare i modelli
 def evaluate_model(name, model, X_train, X_test, y_train, y_test):
@@ -96,15 +112,18 @@ for name, model in models.items():
 # Creazione di un DataFrame per i risultati
 results_df = pd.DataFrame(results, columns=['Model', 'MSE', 'MAE', 'R2', 'Type'])
 
-# Visualizzazione dei risultati
+# Visualizzazione e salvataggio dei risultati
 sns.barplot(x='Model', y='MSE', hue='Type', data=results_df)
 plt.title('MSE dei Modelli di Regressione')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'mse_comparison.png'))
+plt.close()
 
 sns.barplot(x='Model', y='MAE', hue='Type', data=results_df)
 plt.title('MAE dei Modelli di Regressione')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'mae_comparison.png'))
+plt.close()
 
 sns.barplot(x='Model', y='R2', hue='Type', data=results_df)
 plt.title('R2 dei Modelli di Regressione')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'r2_comparison.png'))
+plt.close()
