@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -11,6 +12,20 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers import Dense
+
+# Funzione per rimuovere tutti i file in una cartella
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            os.unlink(file_path)
+
+# Crea la cartella img se non esiste e rimuovi i file se esistono
+img_folder = 'img'
+if not os.path.exists(img_folder):
+    os.makedirs(img_folder)
+else:
+    clear_folder(img_folder)
 
 # Carica i dati
 data = pd.read_csv("dati.csv", delimiter=';')
@@ -52,13 +67,13 @@ plt.scatter(cluster_centers[:, 2], cluster_centers[:, 3], marker='x', color='red
 plt.title('Clustering dei Dati')
 plt.xlabel('Feature 3')
 plt.ylabel('Feature 4')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'clustering.png'))
+plt.close()
 
 # Funzione per valutare i modelli
 def evaluate_model(name, model, X_train, X_test, y_train, y_test):
     model.fit(X_train, y_train)
-    if name == "Lasso Regression":# Analisi dei Coefficienti del Modello Lineare (Lasso)
-        
+    if name == "Lasso Regression":  # Analisi dei Coefficienti del Modello Lineare (Lasso)
         # Ottieni i coefficienti del modello Lasso addestrato
         coefficients = model.coef_
 
@@ -69,16 +84,15 @@ def evaluate_model(name, model, X_train, X_test, y_train, y_test):
         coefficients_df['AbsoluteCoefficient'] = np.abs(coefficients_df['Coefficient'])
         coefficients_df = coefficients_df.sort_values(by='AbsoluteCoefficient', ascending=False)
 
-        # Visualizza i coefficienti
-        print(coefficients_df)
-
         # Plot dei coefficienti
         plt.figure(figsize=(10, 6))
         plt.barh(range(len(coefficients_df)), coefficients_df['Coefficient'], tick_label=coefficients_df['Feature'])
         plt.xlabel('Coefficient Value')
         plt.ylabel('Feature')
         plt.title('Coefficients of Lasso Regression Model')
-        plt.show()
+        plt.savefig(os.path.join(img_folder, 'lasso_coefficients.png'))
+        plt.close()
+
     y_pred = model.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
@@ -115,20 +129,21 @@ for name, model in models.items():
     mse, mae, r2 = evaluate_model(name, model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
     results.append((name, mse, mae, r2, 'After Outlier Removal'))
 
-
 # Creazione di un DataFrame per i risultati
 results_df = pd.DataFrame(results, columns=['Model', 'MSE', 'MAE', 'R2', 'Type'])
 
-# Visualizzazione dei risultati
+# Visualizzazione e salvataggio dei risultati
 sns.barplot(x='Model', y='MSE', hue='Type', data=results_df)
 plt.title('MSE dei Modelli di Regressione')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'mse_comparison.png'))
+plt.close()
 
 sns.barplot(x='Model', y='MAE', hue='Type', data=results_df)
 plt.title('MAE dei Modelli di Regressione')
-plt.show()
+plt.savefig(os.path.join(img_folder, 'mae_comparison.png'))
+plt.close()
 
 sns.barplot(x='Model', y='R2', hue='Type', data=results_df)
 plt.title('R2 dei Modelli di Regressione')
-plt.show()
-
+plt.savefig(os.path.join(img_folder, 'r2_comparison.png'))
+plt.close()
