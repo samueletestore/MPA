@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Lasso
 from sklearn.ensemble import RandomForestRegressor
@@ -56,23 +56,11 @@ lof = LocalOutlierFactor()
 outlier_labels_lof = lof.fit_predict(X_scaled)
 outlier_indices_lof = np.where(outlier_labels_lof == -1)[0]
 
-# Identificazione dei Cluster Anomali con K-Means
-kmeans = KMeans(n_clusters=2)  # Consideriamo 2 cluster per l'esempio
-cluster_labels = kmeans.fit_predict(X_scaled)
-cluster_centers = kmeans.cluster_centers_
-
-# Visualizzazione dei Cluster
-plt.scatter(X_scaled[:, 2], X_scaled[:, 3], c=cluster_labels, cmap='viridis')
-plt.scatter(cluster_centers[:, 2], cluster_centers[:, 3], marker='x', color='red', s=100)
-plt.title('Clustering dei Dati')
-plt.xlabel('Feature 3')
-plt.ylabel('Feature 4')
-plt.savefig(os.path.join(img_folder, 'clustering.png'))
-plt.close()
 
 # Funzione per valutare i modelli
 def evaluate_model(name, model, X_train, X_test, y_train, y_test):
     model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
     if name == "Lasso Regression":  # Analisi dei Coefficienti del Modello Lineare (Lasso)
         # Ottieni i coefficienti del modello Lasso addestrato
         coefficients = model.coef_
@@ -93,7 +81,7 @@ def evaluate_model(name, model, X_train, X_test, y_train, y_test):
         plt.savefig(os.path.join(img_folder, 'lasso_coefficients.png'))
         plt.close()
 
-    y_pred = model.predict(X_test)
+    
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
@@ -126,8 +114,81 @@ X_train_clean, X_test_clean, y_train_clean, y_test_clean = train_test_split(X_sc
 # Calcola le performance del modello dopo la rimozione degli outlier
 print("\nPerformance del modello dopo la rimozione degli outlier:")
 for name, model in models.items():
-    mse, mae, r2 = evaluate_model(name, model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
-    results.append((name, mse, mae, r2, 'After Outlier Removal'))
+    # Gestione dei parametri dei modelli e cross-validation
+    if name == "Linear Regression":
+        # Definizione dei parametri per la regressione lineare
+        linear_params = {'fit_intercept': [True, False]}
+
+        # Ricerca dei parametri ottimali per la regressione lineare
+        linear_grid_search = GridSearchCV(model, linear_params, cv=5)
+        linear_grid_search.fit(X_train_clean, y_train_clean)
+        
+        # Parametri ottimali per la regressione lineare
+        best_linear_params = linear_grid_search.best_params_
+        
+        # Addestramento del modello con i parametri ottimali
+        best_linear_model = LinearRegression(**best_linear_params)
+        best_linear_model.fit(X_train_clean, y_train_clean)
+        
+        # Valutazione del modello con cross-validation
+        linear_cv_scores = cross_val_score(best_linear_model, X_train_clean, y_train_clean, cv=5)
+        print("Cross-Validation Scores (Linear Regression):", linear_cv_scores)
+        print("Mean CV Score (Linear Regression):", np.mean(linear_cv_scores))
+        
+        # Valutazione delle prestazioni sul set di test
+        mse, mae, r2 = evaluate_model(name, best_linear_model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
+        results.append((name, mse, mae, r2, 'After Outlier Removal'))
+        
+    elif name == "Lasso Regression":
+        # Definizione dei parametri per Lasso Regression
+        lasso_params = {'alpha': [0.001, 0.01, 0.1, 1, 10]}
+
+        # Ricerca dei parametri ottimali per Lasso Regression
+        lasso_grid_search = GridSearchCV(model, lasso_params, cv=5)
+        lasso_grid_search.fit(X_train_clean, y_train_clean)
+        
+        # Parametri ottimali per Lasso Regression
+        best_lasso_params = lasso_grid_search.best_params_
+        
+        # Addestramento del modello con i parametri ottimali
+        best_lasso_model = Lasso(**best_lasso_params)
+        best_lasso_model.fit(X_train_clean, y_train_clean)
+        
+        # Valutazione del modello con cross-validation
+        lasso_cv_scores = cross_val_score(best_lasso_model, X_train_clean, y_train_clean, cv=5)
+        print("Cross-Validation Scores (Lasso Regression):", lasso_cv_scores)
+        print("Mean CV Score (Lasso Regression):", np.mean(lasso_cv_scores))
+        
+        # Valutazione delle prestazioni sul set di test
+        mse, mae, r2 = evaluate_model(name, best_lasso_model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
+        results.append((name, mse, mae, r2, 'After Outlier Removal'))
+        
+    elif name == "Random Forest":
+        # Definizione dei parametri per il Random Forest
+        rf_params = {'n_estimators': [100, 200, 300],
+                     'max_depth': [None, 10, 20, 30]}
+
+        # Ricerca dei parametri ottimali per il Random Forest
+        rf_grid_search = GridSearchCV(model, rf_params, cv=5)
+        rf_grid_search.fit(X_train_clean, y_train_clean)
+        
+        # Parametri ottimali per il Random Forest
+        best_rf_params = rf_grid_search.best_params_
+        
+        # Addestramento del modello con i parametri ottimali
+        best_rf_model = RandomForestRegressor(**best_rf_params)
+        best_rf_model.fit(X_train_clean, y_train_clean)
+        
+        # Valutazione del modello con cross-validation
+        rf_cv_scores = cross_val_score(best_rf_model, X_train_clean, y_train_clean, cv=5)
+        print("Cross-Validation Scores (Random Forest):", rf_cv_scores)
+        print("Mean CV Score (Random Forest):", np.mean(rf_cv_scores))
+        
+        # Valutazione delle prestazioni sul set di test
+        mse, mae, r2 = evaluate_model(name, best_rf_model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
+        results.append((name, mse, mae, r2, 'After Outlier Removal'))
+
+
 
 # Creazione di un DataFrame per i risultati
 results_df = pd.DataFrame(results, columns=['Model', 'MSE', 'MAE', 'R2', 'Type'])
@@ -147,3 +208,4 @@ sns.barplot(x='Model', y='R2', hue='Type', data=results_df)
 plt.title('R2 dei Modelli di Regressione')
 plt.savefig(os.path.join(img_folder, 'r2_comparison.png'))
 plt.close()
+
