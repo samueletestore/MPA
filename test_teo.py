@@ -58,10 +58,10 @@ preprocessor = ColumnTransformer(
 
 # Definisci i modelli
 models = {'Linear Regression': LinearRegression(),
-          'Ridge Regression': Ridge(),
+          'Ridge Regression': Ridge(),#da togliere
           'Lasso Regression': Lasso(),
-          'Support Vector Regression': SVR(),
-          'Gradient Boosting Regression': GradientBoostingRegressor()}
+          'Support Vector Regression': SVR(),#da togliere
+          'Gradient Boosting Regression': GradientBoostingRegressor()}#da togliere
 
 # Addestra e valuta i modelli
 for name, model in models.items():
