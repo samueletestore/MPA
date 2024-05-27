@@ -1,13 +1,12 @@
 import os
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, learning_curve
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Lasso
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.neighbors import LocalOutlierFactor
-from sklearn.cluster import KMeans
 import seaborn as sns
 import matplotlib.pyplot as plt
 from keras.models import Sequential
@@ -56,7 +55,6 @@ lof = LocalOutlierFactor()
 outlier_labels_lof = lof.fit_predict(X_scaled)
 outlier_indices_lof = np.where(outlier_labels_lof == -1)[0]
 
-
 # Funzione per valutare i modelli
 def evaluate_model(name, model, X_train, X_test, y_train, y_test):
     model.fit(X_train, y_train)
@@ -81,7 +79,6 @@ def evaluate_model(name, model, X_train, X_test, y_train, y_test):
         plt.savefig(os.path.join(img_folder, 'lasso_coefficients.png'))
         plt.close()
 
-    
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
@@ -143,7 +140,7 @@ for name, model in models.items():
         # Definizione dei parametri per Lasso Regression
         lasso_params = {'alpha': [0.001, 0.01, 0.1, 1, 10]}
 
-        # Ricerca dei parametri ottimali per Lasso Regression
+                # Ricerca dei parametri ottimali per Lasso Regression
         lasso_grid_search = GridSearchCV(model, lasso_params, cv=5)
         lasso_grid_search.fit(X_train_clean, y_train_clean)
         
@@ -188,8 +185,6 @@ for name, model in models.items():
         mse, mae, r2 = evaluate_model(name, best_rf_model, X_train_clean, X_test_clean, y_train_clean, y_test_clean)
         results.append((name, mse, mae, r2, 'After Outlier Removal'))
 
-
-
 # Creazione di un DataFrame per i risultati
 results_df = pd.DataFrame(results, columns=['Model', 'MSE', 'MAE', 'R2', 'Type'])
 
@@ -208,4 +203,39 @@ sns.barplot(x='Model', y='R2', hue='Type', data=results_df)
 plt.title('R2 dei Modelli di Regressione')
 plt.savefig(os.path.join(img_folder, 'r2_comparison.png'))
 plt.close()
+
+# Funzione per tracciare le curve di apprendimento
+def plot_learning_curve(estimator, title, X, y, cv=None, n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
+    plt.figure()
+    plt.title(title)
+    plt.xlabel("Training examples")
+    plt.ylabel("Score")
+
+    train_sizes, train_scores, test_scores = learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+
+    plt.grid()
+
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1,
+                     color="r")
+    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
+             label="Training score")
+    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
+             label="Cross-validation score")
+
+    plt.legend(loc="best")
+    return plt
+
+print("\nCurva di apprendimento dei modelli:")
+for name, model in models.items():
+    title = f"Learning Curves ({name})"
+    plot_learning_curve(model, title, X_scaled, y, cv=5, n_jobs=-1)
+    plt.savefig(os.path.join(img_folder, f'learning_curve_{name.replace(" ", "_").lower()}.png'))
+    plt.close()
 
