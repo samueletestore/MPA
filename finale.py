@@ -83,6 +83,17 @@ def evaluate_model(name, model, X_train, X_test, y_train, y_test):
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     print(f"{name} - MSE: {mse}, MAE: {mae}, R2: {r2}")
+
+    # Grafico dei risultati della regressione
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_test, y_pred, edgecolor='k', alpha=0.7)
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
+    plt.xlabel('Valori Reali')
+    plt.ylabel('Valori Predetti')
+    plt.title(f'Real vs Predicted Values ({name})')
+    plt.savefig(os.path.join(img_folder, f'real_vs_pred_{name.replace(" ", "_").lower()}.png'))
+    plt.close()
+
     return mse, mae, r2
 
 # Modelli da provare
@@ -140,7 +151,7 @@ for name, model in models.items():
         # Definizione dei parametri per Lasso Regression
         lasso_params = {'alpha': [0.001, 0.01, 0.1, 1, 10]}
 
-                # Ricerca dei parametri ottimali per Lasso Regression
+        # Ricerca dei parametri ottimali per Lasso Regression
         lasso_grid_search = GridSearchCV(model, lasso_params, cv=5)
         lasso_grid_search.fit(X_train_clean, y_train_clean)
         
@@ -238,4 +249,3 @@ for name, model in models.items():
     plot_learning_curve(model, title, X_scaled, y, cv=5, n_jobs=-1)
     plt.savefig(os.path.join(img_folder, f'learning_curve_{name.replace(" ", "_").lower()}.png'))
     plt.close()
-
