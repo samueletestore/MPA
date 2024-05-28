@@ -188,7 +188,7 @@ for name, model in models.items():
         best_rf_model.fit(X_train_clean, y_train_clean)
         
         # Valutazione del modello con cross-validation
-        rf_cv_scores = cross_val_score(best_rf_model, X_train_clean, y_train_clean, cv=5)
+        rf_cv_scores = cross_val_score(best_rf_model, X_train_clean, y_train_clean, cv=10)
         print("Cross-Validation Scores (Random Forest):", rf_cv_scores)
         print("Mean CV Score (Random Forest):", np.mean(rf_cv_scores))
         
