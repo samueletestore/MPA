@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
+import os
+import dataframe_image as dfi
+import shutil
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split, learning_curve
+from sklearn.model_selection import train_test_split, learning_curve, GridSearchCV
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -17,6 +20,7 @@ data = data[data['Cloud'] <= 0.2]
 
 # Analisi statistica delle bande spettrali
 stats = data.describe().T[['mean', 'std', 'min', 'max']]
+stats = stats.round(2)
 print(stats)
 
 # Rimuovere gli outlier utilizzando Isolation Forest
@@ -24,22 +28,32 @@ iso = IsolationForest(contamination=0.1)
 data['outliers'] = iso.fit_predict(data.iloc[:, 1:-1])
 data = data[data['outliers'] == 1].drop('outliers', axis=1)
 
+# Creazione della cartella img
+if os.path.exists('img'):
+    shutil.rmtree('img')
+os.makedirs('img')
+
+dfi.export(stats, 'img/stats1.png')
+
 # Boxplot per le bande spettrali
 plt.figure(figsize=(15, 10))
 sns.boxplot(data=data.iloc[:, 1:-1])
 plt.title('Boxplot delle bande spettrali')
-plt.show()
+plt.savefig('img/boxplot_bande_spettrali.png')
+plt.close()
 
 # Istogrammi per le bande spettrali
 data.iloc[:, 1:-1].hist(bins=20, figsize=(15, 10))
 plt.suptitle('Istogrammi delle bande spettrali')
-plt.show()
+plt.savefig('img/istogrammi_bande_spettrali.png')
+plt.close()
 
 # Istogramma della correlazione tra bande spettrali e torbidità
 correlations = data.corr()['Turbidity'].iloc[1:-1]
 correlations.plot(kind='bar', figsize=(12, 6))
 plt.title('Correlazione tra bande spettrali e torbidità')
-plt.show()
+plt.savefig('img/correlazione_bande_torbidita.png')
+plt.close()
 
 # Normalizzazione dei dati
 scaler = StandardScaler()
@@ -80,7 +94,8 @@ performance = pd.DataFrame({
 performance.set_index('Metric', inplace=True)
 performance.plot(kind='bar', figsize=(10, 6))
 plt.title('Confronto delle performance dei modelli')
-plt.show()
+plt.savefig('img/confronto_performance_modelli.png')
+plt.close()
 
 # Visualizzazione della torbidità predetta vs osservata per KNN
 plt.figure(figsize=(10, 6))
@@ -90,7 +105,8 @@ plt.xlabel('Torbidità osservata')
 plt.ylabel('Torbidità predetta')
 plt.title('Torbidità predetta vs osservata (KNN)')
 plt.legend()
-plt.show()
+plt.savefig('img/torbidita_predetta_vs_osservata_knn.png')
+plt.close()
 
 # Visualizzazione della torbidità predetta vs osservata per SVM
 plt.figure(figsize=(10, 6))
@@ -100,11 +116,37 @@ plt.xlabel('Torbidità osservata')
 plt.ylabel('Torbidità predetta')
 plt.title('Torbidità predetta vs osservata (SVM)')
 plt.legend()
-plt.show()
+plt.savefig('img/torbidita_predetta_vs_osservata_svm.png')
+plt.close()
 
-# Confronto delle performance dei modelli con e senza outlier
-# Questo richiede l'addestramento e la valutazione dei modelli sui dati originali con outlier, ripetendo i passaggi precedenti
-# ...
+# Ottimizzazione dei parametri per SVM utilizzando Grid Search
+param_grid = {
+    'C': [0.1, 1, 10, 100],
+    'gamma': [1, 0.1, 0.01, 0.001],
+    'kernel': ['rbf']
+}
+grid = GridSearchCV(SVR(), param_grid, refit=True, verbose=2, cv=5, scoring='neg_mean_squared_error')
+grid.fit(X_train, y_train)
+
+# Migliori parametri trovati
+print("Migliori parametri trovati dalla Grid Search: ", grid.best_params_)
+
+# Predizioni con il modello ottimizzato
+y_pred_svm_opt = grid.predict(X_test)
+
+# Valutazione del modello ottimizzato
+mae_svm_opt, mse_svm_opt, r2_svm_opt = evaluate_model(y_test, y_pred_svm_opt)
+
+# Visualizzazione della torbidità predetta vs osservata per SVM ottimizzato
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_pred_svm_opt, alpha=0.5, label='SVM Ottimizzato', color='orange')
+plt.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', lw=2)
+plt.xlabel('Torbidità osservata')
+plt.ylabel('Torbidità predetta')
+plt.title('Torbidità predetta vs osservata (SVM Ottimizzato)')
+plt.legend()
+plt.savefig('img/torbidita_predetta_vs_osservata_svm_ottimizzato.png')
+plt.close()
 
 # Curva di apprendimento per KNN
 train_sizes, train_scores, test_scores = learning_curve(knn, X_scaled, y, cv=5, scoring='neg_mean_squared_error')
@@ -118,7 +160,8 @@ plt.title('Curva di apprendimento per KNN')
 plt.xlabel('Dimensione del training set')
 plt.ylabel('Errore MSE')
 plt.legend(loc='best')
-plt.show()
+plt.savefig('img/curva_apprendimento_knn.png')
+plt.close()
 
 # Curva di apprendimento per SVM
 train_sizes, train_scores, test_scores = learning_curve(svm, X_scaled, y, cv=5, scoring='neg_mean_squared_error')
@@ -132,4 +175,41 @@ plt.title('Curva di apprendimento per SVM')
 plt.xlabel('Dimensione del training set')
 plt.ylabel('Errore MSE')
 plt.legend(loc='best')
-plt.show()
+plt.savefig('img/curva_apprendimento_svm.png')
+plt.close()
+
+# Curva di apprendimento per SVM ottimizzato
+train_sizes, train_scores, test_scores = learning_curve(grid.best_estimator_, X_scaled, y, cv=5, scoring='neg_mean_squared_error')
+train_scores_mean = -np.mean(train_scores, axis=1)
+test_scores_mean = -np.mean(test_scores, axis=1)
+
+plt.figure()
+plt.plot(train_sizes, train_scores_mean, 'o-', label='Training error')
+plt.plot(train_sizes, test_scores_mean, 'o-', label='Cross-validation error')
+plt.title('Curva di apprendimento per SVM Ottimizzato')
+plt.xlabel('Dimensione del training set')
+plt.ylabel('Errore MSE')
+plt.legend(loc='best')
+plt.savefig('img/curva_apprendimento_svm_ottimizzato.png')
+plt.close()
+
+# Calcolo delle statistiche della colonna 'Turbidity'
+turbidity_stats = data['Turbidity'].describe()[['mean', 'std', 'min', 'max']]
+turbidity_stats_df = pd.DataFrame(turbidity_stats).T
+turbidity_stats_df.index = ['Turbidity']
+turbidity_stats_df = turbidity_stats_df.round(2)
+print(turbidity_stats_df)
+dfi.export(turbidity_stats_df, 'img/turbidity_stats1.png')
+
+# Salvataggio delle statistiche della torbidità come immagine
+fig, ax = plt.subplots(figsize=(8, 2)) # Dimensione della figura
+ax.axis('tight')
+ax.axis('off')
+table = ax.table(cellText=turbidity_stats_df.values,
+                 colLabels=turbidity_stats_df.columns,
+                 rowLabels=turbidity_stats_df.index,
+                 cellLoc='center',
+                 loc='center')
+plt.title('Statistiche della Torbidità')
+plt.savefig('img/turbidity_stats.png')
+plt.close()
