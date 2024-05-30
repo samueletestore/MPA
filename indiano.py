@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import math
 import matplotlib.pyplot as plt
 from pandas import read_csv
 from keras.models import Sequential
@@ -44,11 +45,11 @@ plt.savefig('img-indiano/pairplot.png')
 plt.close()
 
 # Analisi della distribuzione dei valori nelle bande e ricerca di outliers
-for col in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
-    sns.boxplot(x=df[col])
-    plt.title(f'Distribution of {col}')
-    plt.savefig(f'img-indiano/boxplot_{col}.png')
-    plt.close()
+plt.figure(figsize=(15, 10))
+sns.boxplot(data=df.iloc[:, 1:-1])
+plt.title('Boxplot delle bande spettrali')
+plt.savefig('img-indiano/boxplot_bande_spettrali.png')
+plt.close()
 
 # Separazione in caratteristiche e target
 X = df.drop(['Turbidity', 'Cloud'], axis=1)
@@ -104,6 +105,23 @@ plt.close()
 predictions = model.predict(X_test_scaled[:10])
 print("Predicted values are: ", predictions)
 print("Real values are: ", y_test[:10].values)
+
+# Crea una tabella di confronto tra valori previsti e valori reali
+comparison_df = pd.DataFrame({
+    'Real Values': y_test[:10].values,
+    'Predicted Values': predictions.flatten()
+})
+
+# Visualizza la tabella e salvala come immagine
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.axis('tight')
+ax.axis('off')
+table = ax.table(cellText=comparison_df.values, colLabels=comparison_df.columns, cellLoc='center', loc='center')
+table.auto_set_font_size(False)
+table.set_fontsize(12)
+plt.title('Real vs Predicted Values')
+plt.savefig('img-indiano/predicted_vs_real.png')
+plt.close()
 
 # Valutazione del modello di rete neurale
 mse_neural, mae_neural = model.evaluate(X_test_scaled, y_test)
