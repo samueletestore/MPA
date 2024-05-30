@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from pandas import read_csv
@@ -44,11 +43,14 @@ plt.savefig('img-indiano/pairplot.png')
 plt.close()
 
 # Analisi della distribuzione dei valori nelle bande e ricerca di outliers
-for col in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
-    sns.boxplot(x=df[col])
-    plt.title(f'Distribution of {col}')
-    plt.savefig(f'img-indiano/boxplot_{col}.png')
-    plt.close()
+fig, axes = plt.subplots(nrows=3, ncols=5, figsize=(20, 12))
+axes = axes.flatten()
+for i, col in enumerate(feature_names[1:-1]):  # Escludiamo 'Turbidity' e 'Cloud'
+    sns.boxplot(x=df[col], ax=axes[i])
+    axes[i].set_title(f'Distribution of {col}')
+fig.tight_layout()
+plt.savefig('img-indiano/boxplots_combined.png')
+plt.close()
 
 # Separazione in caratteristiche e target
 X = df.drop(['Turbidity', 'Cloud'], axis=1)
