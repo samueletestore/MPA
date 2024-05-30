@@ -11,6 +11,21 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
+import os
+
+# Funzione per rimuovere tutti i file in una cartella
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            os.unlink(file_path)
+
+# Crea la cartella img-indiano se non esiste e rimuovi i file se esistono
+img_folder = 'img-indiano'
+if not os.path.exists(img_folder):
+    os.makedirs(img_folder)
+else:
+    clear_folder(img_folder)
 
 # Carica il dataset
 df = read_csv("dati.csv", delimiter=';')
@@ -25,13 +40,15 @@ df = df[df['Cloud'] < 0.2]  # Soglia per la copertura nuvolosa
 
 # Analisi esplorativa dei dati
 sns.pairplot(df, diag_kind='kde')
-plt.show()
+plt.savefig('img-indiano/pairplot.png')
+plt.close()
 
 # Analisi della distribuzione dei valori nelle bande e ricerca di outliers
 for col in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
     sns.boxplot(x=df[col])
     plt.title(f'Distribution of {col}')
-    plt.show()
+    plt.savefig(f'img-indiano/boxplot_{col}.png')
+    plt.close()
 
 # Separazione in caratteristiche e target
 X = df.drop(['Turbidity', 'Cloud'], axis=1)
@@ -69,7 +86,8 @@ plt.title('Training and validation loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.legend()
-plt.show()
+plt.savefig('img-indiano/training_validation_loss.png')
+plt.close()
 
 acc = history.history['mae']
 val_acc = history.history['val_mae']
@@ -79,7 +97,8 @@ plt.title('Training and validation MAE')
 plt.xlabel('Epochs')
 plt.ylabel('MAE')
 plt.legend()
-plt.show()
+plt.savefig('img-indiano/training_validation_mae.png')
+plt.close()
 
 # Previsione sui dati di test
 predictions = model.predict(X_test_scaled[:10])
@@ -120,15 +139,17 @@ mae_rf = mean_absolute_error(y_test, y_pred_rf)
 print('Mean squared error using Random Forest: ', mse_rf)
 print('Mean absolute error Using Random Forest: ', mae_rf)
 
-# Importanza delle caratteristiche
+# Importanza delle caratteristiche con Regressione Lineare
 feature_list = list(X.columns)
-feature_imp = pd.Series(rf_model.feature_importances_, index=feature_list).sort_values(ascending=False)
-print(feature_imp)
+coef = lr_model.coef_
+feature_imp_lr = pd.Series(coef, index=feature_list).sort_values(ascending=False)
+print(feature_imp_lr)
 
-# Visualizzazione dell'importanza delle caratteristiche
-feature_imp.plot(kind='bar')
-plt.title('Feature Importance')
-plt.show()
+# Visualizzazione dell'importanza delle caratteristiche con Regressione Lineare
+feature_imp_lr.plot(kind='bar')
+plt.title('Feature Importance with Linear Regression')
+plt.savefig('img-indiano/feature_importance_lr.png')
+plt.close()
 
 # Modelli semplici con singole bande spettrali
 for band in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
@@ -147,7 +168,7 @@ for band in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
     print(f'Mean absolute error from linear regression using {band}: ', mae_lr_sb)
 
 # Selezione delle bande spettrali più importanti
-top_bands = feature_imp.index[:5]  # Selezioniamo le prime 5 bande più importanti
+top_bands = feature_imp_lr.index[:5]  # Selezioniamo le prime 5 bande più importanti
 X_top_bands = df[top_bands]
 X_train_tb, X_test_tb, y_train_tb, y_test_tb = train_test_split(X_top_bands, y, test_size=0.2, random_state=20)
 
