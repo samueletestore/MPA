@@ -43,16 +43,12 @@ sns.pairplot(df, diag_kind='kde')
 plt.savefig('img-indiano/pairplot.png')
 plt.close()
 
-# Creazione di un unico grafico con i boxplot delle bande spettrali
-plt.figure(figsize=(20, 15))
-for i, col in enumerate(feature_names[1:-1]):  # Escludiamo 'Turbidity' e 'Cloud'
-    plt.subplot(3, 5, i+1)
+# Analisi della distribuzione dei valori nelle bande e ricerca di outliers
+for col in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
     sns.boxplot(x=df[col])
-    plt.title(f'{col}')
-
-plt.tight_layout()
-plt.savefig(f'img-indiano/boxplot_spectral_bands.png')
-plt.close()
+    plt.title(f'Distribution of {col}')
+    plt.savefig(f'img-indiano/boxplot_{col}.png')
+    plt.close()
 
 # Separazione in caratteristiche e target
 X = df.drop(['Turbidity', 'Cloud'], axis=1)
