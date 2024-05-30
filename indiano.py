@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 from pandas import read_csv
 from keras.models import Sequential
 from keras.layers import Dense
@@ -9,10 +11,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
-from matplotlib import pyplot as plt
 
 # Carica il dataset
-df = pd.read_csv("dati.csv", delimiter=';')
+df = read_csv("dati.csv", delimiter=';')
 
 # Nomina delle colonne
 feature_names = ['Turbidity', 'B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 
@@ -20,7 +21,17 @@ feature_names = ['Turbidity', 'B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07',
 df.columns = feature_names
 
 # Filtra i dati basati sulla copertura nuvolosa
-df = df[df['Cloud'] < 0.01]  # Soglia per la copertura nuvolosa
+df = df[df['Cloud'] < 0.2]  # Soglia per la copertura nuvolosa
+
+# Analisi esplorativa dei dati
+sns.pairplot(df, diag_kind='kde')
+plt.show()
+
+# Analisi della distribuzione dei valori nelle bande e ricerca di outliers
+for col in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
+    sns.boxplot(x=df[col])
+    plt.title(f'Distribution of {col}')
+    plt.show()
 
 # Separazione in caratteristiche e target
 X = df.drop(['Turbidity', 'Cloud'], axis=1)
@@ -71,9 +82,9 @@ plt.legend()
 plt.show()
 
 # Previsione sui dati di test
-predictions = model.predict(X_test_scaled[:5])
+predictions = model.predict(X_test_scaled[:10])
 print("Predicted values are: ", predictions)
-print("Real values are: ", y_test[:5].values)
+print("Real values are: ", y_test[:10].values)
 
 # Valutazione del modello di rete neurale
 mse_neural, mae_neural = model.evaluate(X_test_scaled, y_test)
@@ -118,3 +129,43 @@ print(feature_imp)
 feature_imp.plot(kind='bar')
 plt.title('Feature Importance')
 plt.show()
+
+# Modelli semplici con singole bande spettrali
+for band in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
+    X_single_band = df[[band]]
+    X_train_sb, X_test_sb, y_train_sb, y_test_sb = train_test_split(X_single_band, y, test_size=0.2, random_state=20)
+    scaler_sb = StandardScaler()
+    X_train_sb_scaled = scaler_sb.fit_transform(X_train_sb)
+    X_test_sb_scaled = scaler_sb.transform(X_test_sb)
+    
+    lr_model_sb = LinearRegression()
+    lr_model_sb.fit(X_train_sb_scaled, y_train_sb)
+    y_pred_lr_sb = lr_model_sb.predict(X_test_sb_scaled)
+    mse_lr_sb = mean_squared_error(y_test_sb, y_pred_lr_sb)
+    mae_lr_sb = mean_absolute_error(y_test_sb, y_pred_lr_sb)
+    print(f'Mean squared error from linear regression using {band}: ', mse_lr_sb)
+    print(f'Mean absolute error from linear regression using {band}: ', mae_lr_sb)
+
+# Selezione delle bande spettrali più importanti
+top_bands = feature_imp.index[:5]  # Selezioniamo le prime 5 bande più importanti
+X_top_bands = df[top_bands]
+X_train_tb, X_test_tb, y_train_tb, y_test_tb = train_test_split(X_top_bands, y, test_size=0.2, random_state=20)
+
+scaler_tb = StandardScaler()
+X_train_tb_scaled = scaler_tb.fit_transform(X_train_tb)
+X_test_tb_scaled = scaler_tb.transform(X_test_tb)
+
+# Modello di rete neurale con bande spettrali selezionate
+model_top_bands = Sequential()
+model_top_bands.add(Dense(128, input_dim=X_train_tb.shape[1], activation='relu'))
+model_top_bands.add(Dense(64, activation='relu'))
+model_top_bands.add(Dense(1, activation='linear'))
+
+model_top_bands.compile(loss='mean_squared_error', optimizer='adam', metrics=['mae'])
+model_top_bands.summary()
+
+history_top_bands = model_top_bands.fit(X_train_tb_scaled, y_train_tb, validation_split=0.2, epochs=100)
+
+mse_neural_tb, mae_neural_tb = model_top_bands.evaluate(X_test_tb_scaled, y_test_tb)
+print('Mean squared error from neural net with top bands: ', mse_neural_tb)
+print('Mean absolute error from neural net with top bands: ', mae_neural_tb)
