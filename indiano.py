@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import math
 import matplotlib.pyplot as plt
+
 from pandas import read_csv
 from keras.models import Sequential
 from keras.layers import Dense
@@ -40,22 +41,31 @@ df.columns = feature_names
 df = df[df['Cloud'] < 0.2]  # Soglia per la copertura nuvolosa
 
 # Rilevazione degli outlier con Z-score
-def detect_outliers_zscore(df, feature, threshold=2.58):
+def detect_outliers_zscore(df, feature, threshold=3):
     z_scores = (df[feature] - df[feature].mean()) / df[feature].std()
     outliers = df[np.abs(z_scores) > threshold]
     return outliers
 
 outliers = []
+outlier_indices = set()
 for feature in df.columns:
-    if feature != 'Cloud':
+    if feature != 'Cloud' and feature != 'Turbidity':
         feature_outliers = detect_outliers_zscore(df, feature)
         outliers.append(feature_outliers)
 
-# Rimozione degli outlier
-outlier_indices = set()
-for outlier_group in outliers:
-    outlier_indices.update(outlier_group.index)
+        # Visualizzazione degli outlier rilevati per ogni caratteristica
+        plt.scatter(feature_outliers.index, feature_outliers[feature], c='r', label='Outlier')
+        plt.scatter(df.index, df[feature], c='b', label='Non-outlier', alpha=0.3)
+        plt.title(f'Outliers in {feature}')
+        plt.xlabel('Index')
+        plt.ylabel(feature)
+        plt.legend()
+        plt.savefig(f'img-indiano/outliers_{feature}.png')
+        plt.close()
 
+        outlier_indices.update(feature_outliers.index)
+
+# Rimozione degli outlier
 df_no_outliers = df.drop(outlier_indices)
 
 # Analisi esplorativa dei dati
@@ -121,26 +131,26 @@ plt.savefig('img-indiano/training_validation_mae.png')
 plt.close()
 
 # Previsione sui dati di test
-predictions = model.predict(X_test_scaled[:10])
+predictions = model.predict(X_test_scaled[:])
 print("Predicted values are: ", predictions)
-print("Real values are: ", y_test[:10].values)
+print("Real values are: ", y_test[:].values)
 
-# Crea una tabella di confronto tra valori previsti e valori reali
-comparison_df = pd.DataFrame({
-    'Real Values': y_test[:10].values,
-    'Predicted Values': predictions.flatten()
-})
+# Creazione del grafico a punti con il colore dei marcatori desiderato
+plt.scatter(y_test, predictions, alpha=0.5, color='#6CE5E8')  # Grafico a punti
 
-# Visualizza la tabella e salvala come immagine
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.axis('tight')
-ax.axis('off')
-table = ax.table(cellText=comparison_df.values, colLabels=comparison_df.columns, cellLoc='center', loc='center')
-table.auto_set_font_size(False)
-table.set_fontsize(12)
-plt.title('Real vs Predicted Values')
-plt.savefig('img-indiano/predicted_vs_real.png')
+# Linea di best fitting
+z = np.polyfit(y_test, predictions, 1)
+p = np.poly1d(z[0])  
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red')
+
+plt.gca().set_facecolor('#DAE9FF')
+plt.title('Predicted vs Real Values with Best Fit Line')
+plt.xlabel('Real Values')
+plt.ylabel('Predicted Values')
+plt.savefig('img-indiano/predicted_vs_real_best_fit.png')
 plt.close()
+
+
 
 # Valutazione del modello di rete neurale
 mse_neural, mae_neural = model.evaluate(X_test_scaled, y_test)
@@ -184,6 +194,45 @@ print('Mean squared error using Random Forest: ', mse_rf)
 print('Mean absolute error Using Random Forest: ', mae_rf)
 print('R2 score Using Random Forest: ', r2_rf)
 
+# Istogrammi per il confronto delle metriche per ogni modello
+models = ['Linear Regression', 'Decision Tree', 'Random Forest']
+mse_values = [mse_neural, mse_lr, mse_dt, mse_rf]
+mae_values = [mae_neural, mae_lr, mae_dt, mae_rf]
+r2_values = [r2_neural, r2_lr, r2_dt, r2_rf]
+
+model_color = '#41B8D5'
+nn_color = '#6CE5E8'
+bg_color = '#DAE9FF'  # Colore di sfondo
+
+for i, model in enumerate(models):
+    fig, axs = plt.subplots(1, 3, figsize=(9, 10))
+
+    # MSE
+    axs[0].bar([model, 'Neural Net'], [mse_values[i + 1], mse_values[0]], color=[model_color, nn_color])
+    axs[0].set_title(f'Mean Squared Error \n {model} \nvs\n Neural Net')
+    axs[0].set_ylabel('MSE')
+    axs[0].set_facecolor(bg_color)  # Imposta il colore di sfondo
+
+    # MAE
+    axs[1].bar([model, 'Neural Net'], [mae_values[i + 1], mae_values[0]], color=[model_color, nn_color])
+    axs[1].set_title(f'Mean Absolute Error \n {model} \nvs\n Neural Net')
+    axs[1].set_ylabel('MAE')
+    axs[1].set_facecolor(bg_color)  # Imposta il colore di sfondo
+
+    # R2
+    axs[2].bar([model, 'Neural Net'], [r2_values[i + 1], r2_values[0]], color=[model_color, nn_color])
+    axs[2].set_title(f'R2 Score \n {model} \nvs\n Neural Net')
+    axs[2].set_ylabel('R2')
+    axs[2].set_facecolor(bg_color)  # Imposta il colore di sfondo
+
+    plt.tight_layout()
+    plt.savefig(f'img-indiano/model_comparison_{model}.png')
+    plt.close()
+
+
+
+
+
 # Importanza delle caratteristiche con Regressione Lineare
 feature_list = list(X.columns)
 coef = lr_model.coef_
@@ -218,6 +267,9 @@ for band in feature_names[1:-1]:  # Escludiamo 'Turbidity' e 'Cloud'
 # Selezione delle bande spettrali più importanti
 top_bands = feature_imp_lr.index[:5]  # Selezioniamo le prime 5 bande più importanti
 X_top_bands = df_no_outliers[top_bands]
+
+print('\nTop bands: ', top_bands, '\n')
+
 X_train_tb, X_test_tb, y_train_tb, y_test_tb = train_test_split(X_top_bands, y, test_size=0.2, random_state=20)
 
 scaler_tb = StandardScaler()
@@ -240,3 +292,23 @@ r2_neural_tb = r2_score(y_test_tb, model_top_bands.predict(X_test_tb_scaled))
 print('Mean squared error from neural net with top bands: ', mse_neural_tb)
 print('Mean absolute error from neural net with top bands: ', mae_neural_tb)
 print('R2 score from neural net with top bands: ', r2_neural_tb)
+
+# Previsione sui dati di test utilizzando le migliori bande
+predictions_top_bands = model_top_bands.predict(X_test_tb_scaled)
+print("Predicted values with top bands are: ", predictions_top_bands)
+print("Real values are: ", y_test_tb.values)
+
+# Creazione del grafico a punti con il colore dei marcatori desiderato
+plt.scatter(y_test_tb, predictions_top_bands, alpha=0.5, color='#6CE5E8')  # Grafico a punti
+
+# Linea di best fitting
+z = np.polyfit(y_test_tb, predictions_top_bands, 1)
+p = np.poly1d(z[0])
+plt.plot([min(y_test_tb), max(y_test_tb)], [min(y_test_tb), max(y_test_tb)], color='red')
+
+plt.gca().set_facecolor('#DAE9FF')
+plt.title('Predicted vs Real Values with Best Fit Line (Top Bands)')
+plt.xlabel('Real Values')
+plt.ylabel('Predicted Values')
+plt.savefig('img-indiano/predicted_vs_real_best_fit_top_bands.png')
+plt.close()
