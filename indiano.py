@@ -94,6 +94,8 @@ scaler.fit(X_train)
 X_train_scaled = scaler.transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
+#stampa X_train_shape
+print(X_train.shape[1])
 # Definizione del modello di rete neurale
 model = Sequential()
 model.add(Dense(64, input_dim=X_train.shape[1], activation='relu'))
@@ -276,6 +278,7 @@ scaler_tb = StandardScaler()
 X_train_tb_scaled = scaler_tb.fit_transform(X_train_tb)
 X_test_tb_scaled = scaler_tb.transform(X_test_tb)
 
+print(X_train.shape[1])
 # Modello di rete neurale con bande spettrali selezionate
 model_top_bands = Sequential()
 model_top_bands.add(Dense(64, input_dim=X_train_tb.shape[1], activation='relu'))
