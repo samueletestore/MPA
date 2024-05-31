@@ -293,6 +293,35 @@ print('Mean squared error from neural net with top bands: ', mse_neural_tb)
 print('Mean absolute error from neural net with top bands: ', mae_neural_tb)
 print('R2 score from neural net with top bands: ', r2_neural_tb)
 
+# Addestramento del modello con bande spettrali selezionate
+history_top_bands = model_top_bands.fit(X_train_tb_scaled, y_train_tb, validation_split=0.2, epochs=50)
+
+# Visualizzazione delle perdite di addestramento e validazione
+loss = history_top_bands.history['loss']
+val_loss = history_top_bands.history['val_loss']
+epochs = range(1, len(loss) + 1)
+plt.plot(epochs, loss, 'y', label='Training loss')
+plt.plot(epochs, val_loss, 'r', label='Validation loss')
+plt.title('Training and validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.savefig('img-indiano/training_validation_loss_top_bands.png')
+plt.close()
+
+# Visualizzazione dell'accuratezza di addestramento e validazione
+acc = history_top_bands.history['mae']
+val_acc = history_top_bands.history['val_mae']
+plt.plot(epochs, acc, 'y', label='Training MAE')
+plt.plot(epochs, val_acc, 'r', label='Validation MAE')
+plt.title('Training and validation MAE')
+plt.xlabel('Epochs')
+plt.ylabel('MAE')
+plt.legend()
+plt.savefig('img-indiano/training_validation_mae_top_bands.png')
+plt.close()
+
+
 # Previsione sui dati di test utilizzando le migliori bande
 predictions_top_bands = model_top_bands.predict(X_test_tb_scaled)
 print("Predicted values with top bands are: ", predictions_top_bands)
